@@ -27,14 +27,32 @@ import android.util.Patterns
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.navigation.NavController
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.upn.emptyapp.dataStore
+import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(onClick: () -> Unit, onSuccess: () -> Unit) {
+fun LoginScreen(navController: NavController) {
     var password by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
+    var loginError by remember { mutableStateOf("") }
     val context = LocalContext.current
+
+    val auth = Firebase.auth;
+
+    val scope = rememberCoroutineScope()
+    val temaKey = booleanPreferencesKey("tema_oscuro")
+    val tokenKey = stringPreferencesKey("token")
+
+
 
     Column(
         modifier = Modifier
@@ -46,6 +64,10 @@ fun LoginScreen(onClick: () -> Unit, onSuccess: () -> Unit) {
         Text(
             text = "Iniciar Sesión",
             style = MaterialTheme.typography.headlineLarge
+        )
+
+        Text(
+            text = loginError,
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -90,6 +112,7 @@ fun LoginScreen(onClick: () -> Unit, onSuccess: () -> Unit) {
 
         Button(
             onClick = {
+                loginError = ""
                 emailError = null
                 passwordError = null
 
@@ -97,8 +120,6 @@ fun LoginScreen(onClick: () -> Unit, onSuccess: () -> Unit) {
                     emailError = "El email es requerido."
                 } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                     emailError = "Formato de email inválido."
-                } else if(!email.endsWith("gmail.com")) {
-                    emailError = "Solo se permite correos gmail.com"
                 }
 
                 if (password.isEmpty()) {
@@ -106,8 +127,24 @@ fun LoginScreen(onClick: () -> Unit, onSuccess: () -> Unit) {
                 }
 
                 if (emailError == null && passwordError == null) {
-                    Toast.makeText(context, "Login clicked", Toast.LENGTH_SHORT).show()
-                    onSuccess();
+
+                    auth.signInWithEmailAndPassword(email, password)
+                        .addOnSuccessListener { result ->
+                            scope.launch {
+                                context.dataStore.edit { it[tokenKey] = "ABC" }
+                                navController.navigate("home") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            }
+
+
+                        }
+                        .addOnFailureListener { error ->
+                            loginError = error.message!!
+                        }
+
+                    // aca intento hacer login
+//                    Toast.makeText(context, "Login clicked", Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -121,7 +158,6 @@ fun LoginScreen(onClick: () -> Unit, onSuccess: () -> Unit) {
             text = "¿No tienes cuenta? Regístrate aquí",
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.clickable {
-                onClick()
             }
         )
     }

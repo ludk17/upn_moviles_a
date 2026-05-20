@@ -14,24 +14,42 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.navigation.NavController
 import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
+import com.upn.emptyapp.dataStore
 import com.upn.emptyapp.models.Estudiante
 import com.upn.emptyapp.ui.shared.theme.AppColors
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import org.checkerframework.checker.units.qual.Current
 
 @Composable
 fun ListaFirebaseScreen(navController: NavController) {
     val firestore = Firebase.firestore // instancia firestore
+    var auth = Firebase.auth
     var estudiantes by remember { mutableStateOf(emptyList<Estudiante>()) }
     var estaCargando by remember { mutableStateOf(false) };
+    val tokenKey = stringPreferencesKey("token")
+
+    val context = LocalContext.current
+
+    val apiToken by context.dataStore.data
+        .mapNotNull { it[tokenKey] ?: "" }
+        .collectAsState(initial = "")
+
+
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -41,7 +59,7 @@ fun ListaFirebaseScreen(navController: NavController) {
                 navController.navigate("crear_estudiante")
             })
             {
-                Text("Crear")
+                Text(apiToken)
             }
         }
     ) { paddingValues ->
@@ -82,6 +100,15 @@ fun ListaFirebaseScreen(navController: NavController) {
                 }
 
 
+            }
+
+            Button(onClick = {
+                auth.signOut()
+                navController.navigate("login") {
+                    popUpTo("home") { inclusive = true }
+                }
+            }) {
+                Text("Cerrar Sesion")
             }
         }
 
